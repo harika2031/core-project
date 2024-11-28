@@ -15,6 +15,7 @@ import org.bouncycastle.crypto.engines.AESFastEngine;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import java.security.Security;
+import java.util.Scanner;
 import java.util.Base64;
 
 public class SecurityComparison {
@@ -70,8 +71,20 @@ public class SecurityComparison {
     }
 
     public static void main(String[] args) throws Exception {
-        String message = "1234567890";  // Example message
-        int rotationCount = 3;  // Rotate the first 3 digits
+        // Create Scanner object for user input
+        Scanner scanner = new Scanner(System.in);
+
+        // User input for message and rotation count
+        System.out.println("Enter the message:");
+        String message = scanner.nextLine();
+
+        System.out.println("Enter the number of rotations for Left Digit Rotation:");
+        int rotationCount = scanner.nextInt();
+        scanner.nextLine();  // Consume the newline character
+
+        // User input for secret key for CBMAC
+        System.out.println("Enter the secret key for CBMAC:");
+        String secretKey = scanner.nextLine();
 
         // Step 1: Perform Left Digit Rotation (LDR)
         String rotatedMessage = leftDigitRotation(message, rotationCount);
@@ -88,8 +101,6 @@ public class SecurityComparison {
         System.out.println("Time taken for ECC (in nanoseconds): " + durationECC);
 
         // Step 3: Measure Time for CBMAC
-        String secretKey = "thisisaverysecretkey";  // Example key for CBMAC
-
         long startTimeCBMAC = System.nanoTime();
         String cbmac = generateCBMAC(rotatedMessage, secretKey);  // Generate CBMAC for rotated message
         long endTimeCBMAC = System.nanoTime();
@@ -104,5 +115,7 @@ public class SecurityComparison {
         } else {
             System.out.println("CBMAC is faster than ECC.");
         }
+
+        scanner.close();  // Close the scanner
     }
 }
