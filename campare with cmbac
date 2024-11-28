@@ -1,0 +1,108 @@
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.signers.ECDSASigner;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.math.ec.ECPoint;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import java.security.*;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECGenParameterSpec;
+import java.util.Base64;
+import org.bouncycastle.crypto.macs.CMAC;
+import org.bouncycastle.crypto.engines.AESFastEngine;
+import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import java.security.Security;
+import java.util.Base64;
+
+public class SecurityComparison {
+
+    // Method to perform Left Digit Rotation
+    public static String leftDigitRotation(String message, int rotationCount) {
+        if (message == null || message.length() == 0 || rotationCount <= 0) {
+            return message;
+        }
+
+        rotationCount = rotationCount % message.length();  // To handle rotations greater than message length
+        return message.substring(rotationCount) + message.substring(0, rotationCount);
+    }
+
+    // Method to sign message using ECC
+    public static String signMessage(String message) throws Exception {
+        Security.addProvider(new BouncyCastleProvider());
+
+        // Generate EC keys
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
+        ECGenParameterSpec ecSpec = new ECGenParameterSpec("secp256k1");
+        keyGen.initialize(ecSpec, new SecureRandom());
+        KeyPair keyPair = keyGen.generateKeyPair();
+
+        // Sign the message
+        Signature ecdsa = Signature.getInstance("SHA256withECDSA", "BC");
+        ecdsa.initSign(keyPair.getPrivate());
+        ecdsa.update(message.getBytes());
+
+        byte[] signature = ecdsa.sign();
+        return Base64.getEncoder().encodeToString(signature);
+    }
+
+    // Method to generate CMAC using AES
+    public static String generateCBMAC(String message, String secretKey) throws Exception {
+        Security.addProvider(new BouncyCastleProvider());
+
+        // Convert the secret key to bytes
+        byte[] keyBytes = secretKey.getBytes();
+        KeyParameter key = new KeyParameter(keyBytes);
+
+        // Create CMAC with AES engine
+        CMAC cmac = new CMAC(new AESFastEngine());
+        cmac.init(key);
+
+        byte[] messageBytes = message.getBytes();
+        cmac.update(messageBytes, 0, messageBytes.length);
+
+        byte[] mac = new byte[cmac.getMacSize()];
+        cmac.doFinal(mac, 0);
+
+        return Base64.getEncoder().encodeToString(mac);
+    }
+
+    public static void main(String[] args) throws Exception {
+        String message = "1234567890";  // Example message
+        int rotationCount = 3;  // Rotate the first 3 digits
+
+        // Step 1: Perform Left Digit Rotation (LDR)
+        String rotatedMessage = leftDigitRotation(message, rotationCount);
+        System.out.println("Original Message: " + message);
+        System.out.println("Rotated Message: " + rotatedMessage);
+
+        // Step 2: Measure Time for ECC (Signature Generation)
+        long startTimeECC = System.nanoTime();
+        String eccSignature = signMessage(rotatedMessage);  // Sign rotated message using ECC
+        long endTimeECC = System.nanoTime();
+        long durationECC = endTimeECC - startTimeECC;
+
+        System.out.println("ECC Signature: " + eccSignature);
+        System.out.println("Time taken for ECC (in nanoseconds): " + durationECC);
+
+        // Step 3: Measure Time for CBMAC
+        String secretKey = "thisisaverysecretkey";  // Example key for CBMAC
+
+        long startTimeCBMAC = System.nanoTime();
+        String cbmac = generateCBMAC(rotatedMessage, secretKey);  // Generate CBMAC for rotated message
+        long endTimeCBMAC = System.nanoTime();
+        long durationCBMAC = endTimeCBMAC - startTimeCBMAC;
+
+        System.out.println("Generated CBMAC: " + cbmac);
+        System.out.println("Time taken for CBMAC (in nanoseconds): " + durationCBMAC);
+
+        // Step 4: Comparison
+        if (durationECC < durationCBMAC) {
+            System.out.println("ECC is faster than CBMAC.");
+        } else {
+            System.out.println("CBMAC is faster than ECC.");
+        }
+    }
+}
